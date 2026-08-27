@@ -20,6 +20,7 @@ from .hotkey import HotkeyListener
 from .output import OutputController
 from .processor import Replacer, TranscriptProcessor
 from .recorder import Recorder
+from .statusbar import NullStatusItem, StatusItem
 from .ui import NullOverlay, Overlay, schedule_timer
 
 _CLOSE_TIMEOUT = 1.0
@@ -41,6 +42,7 @@ class App:
             language=config.language,
         )
         self._processor: TranscriptProcessor = Replacer(config.replacements)
+        self._shutdown = threading.Event()
         self._output = OutputController(auto_paste=config.auto_paste)
         self._feedback = SoundFeedback(enabled=config.sounds)
         self._overlay = (
@@ -48,13 +50,15 @@ class App:
             if config.overlay
             else NullOverlay()
         )
+        self._status_item = (
+            StatusItem(on_quit=self._shutdown.set) if config.menu_bar else NullStatusItem()
+        )
         self._listener: HotkeyListener | None = None
         self._jobs: queue.Queue = queue.Queue()
         # Doing recorder start/stop on the event-tap thread risks macOS
         # disabling the tap when it runs slow; forward key edges in order to a
         # separate thread instead.
         self._keys: queue.Queue = queue.Queue()
-        self._shutdown = threading.Event()
 
     def _on_press(self) -> None:
         self._keys.put(True)
@@ -80,11 +84,13 @@ class App:
     def _start_recording(self) -> None:
         self._recorder.start()
         self._feedback.play("start")
+        self._status_item.set_state("recording")
         self._overlay.show_recording()
         print("● 録音中...", flush=True)
 
     def _discard(self, message: str) -> None:
         self._feedback.play("error")
+        self._status_item.set_state("idle")
         self._overlay.hide()
         print(message, flush=True)
 
@@ -100,6 +106,7 @@ class App:
             self._discard(f"○ 無音のため破棄 ({duration:.1f}s)")
             return
         self._feedback.play("stop")
+        self._status_item.set_state("transcribing")
         self._overlay.show_message("文字起こし中…")
         self._jobs.put((audio, duration))
 
@@ -134,6 +141,7 @@ class App:
                 continue
             self._output.deliver(text)
             self._feedback.play("done")
+            self._status_item.set_state("idle")
             flash = min(_RESULT_FLASH_MAX, _RESULT_FLASH_BASE + len(text) * _RESULT_FLASH_PER_CHAR)
             self._overlay.flash_message(f"✓ {text}", flash)
             print(f"✓ [{duration:.1f}s→{asr_time:.2f}s] {text}", flush=True)
@@ -198,6 +206,7 @@ class App:
         # a periodic timer returns control so Ctrl+C is not lost.
         app = AppKit.NSApplication.sharedApplication()
         app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
+        self._status_item.build()
         self._overlay.build()
         self._tick_timer = schedule_timer(_TICK, True, lambda _timer: self._tick())
         AppHelper.runEventLoop()

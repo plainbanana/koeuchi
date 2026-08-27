@@ -59,6 +59,7 @@ auto_paste = false        # true = also auto-paste (Cmd+V) into the frontmost ap
 min_duration = 0.3        # recordings shorter than this are discarded (seconds)
 sounds = true             # audio cues: start (Tink) / stop (Pop) / done (Glass) / error (Basso)
 overlay = true            # show the level meter + stop button pill while recording
+menu_bar = true           # menu bar icon: mic (idle) / red mic (recording) / waveform (transcribing)
 
 # Deterministic replacements applied to the transcription. Use this to fix terminology
 [replacements]

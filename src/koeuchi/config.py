@@ -26,6 +26,7 @@ class Config:
     sample_rate: int = 16000  # Qwen3-ASR expects 16kHz
     sounds: bool = True
     overlay: bool = True
+    menu_bar: bool = True
     # None means model auto-detect, which can corrupt output when it guesses
     # wrong (e.g. a "language Sao." prefix), so pin it by default.
     language: str | None = "Japanese"
