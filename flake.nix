@@ -5,7 +5,6 @@
 
   outputs = { self, nixpkgs }:
     let
-      # MLXを使うためApple Siliconのみ
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
 
@@ -19,8 +18,6 @@
         ];
       });
 
-      # MLX系のwheelはnixpkgsに無いので、純Nixでは閉じずにuvへ委譲する。
-      # 依存はuv.lockで固定され、初回起動時に ~/.cache/koeuchi/venv へ展開される
       koeuchi = pkgs.writeShellApplication {
         name = "koeuchi";
         runtimeInputs = [ pkgs.uv ];
