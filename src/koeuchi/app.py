@@ -54,6 +54,7 @@ class App:
             StatusItem(on_quit=self._shutdown.set) if config.menu_bar else NullStatusItem()
         )
         self._listener: HotkeyListener | None = None
+        self._recording = False
         self._jobs: queue.Queue = queue.Queue()
         # Doing recorder start/stop on the event-tap thread risks macOS
         # disabling the tap when it runs slow; forward key edges in order to a
@@ -83,17 +84,22 @@ class App:
 
     def _start_recording(self) -> None:
         self._recorder.start()
+        self._recording = True
         self._status_item.set_state("recording")
         self._overlay.show_recording()
         print("● 録音中...", flush=True)
 
     def _discard(self, message: str) -> None:
         self._feedback.play("error")
-        self._status_item.set_state("idle")
-        self._overlay.hide()
+        # While a new recording is underway, keep the waveform UI; the failed
+        # job only concerns a previous take.
+        if not self._recording:
+            self._status_item.set_state("idle")
+            self._overlay.hide()
         print(message, flush=True)
 
     def _finish_recording(self) -> None:
+        self._recording = False
         audio = self._recorder.stop()
         duration = len(audio) / self._config.sample_rate
         if duration < self._config.min_duration:
@@ -113,6 +119,8 @@ class App:
         expected_chars = max(1.0, duration * _CHARS_PER_SEC)
 
         def on_progress(partial: str) -> None:
+            if self._recording:
+                return
             pct = min(99, int(len(partial) / expected_chars * 100))
             self._overlay.show_message(f"文字起こし中… {pct}%")
 
@@ -140,9 +148,12 @@ class App:
                 continue
             self._output.deliver(text)
             self._feedback.play("done")
-            self._status_item.set_state("idle")
-            flash = min(_RESULT_FLASH_MAX, _RESULT_FLASH_BASE + len(text) * _RESULT_FLASH_PER_CHAR)
-            self._overlay.flash_message(f"✓ {text}", flash)
+            if not self._recording:
+                self._status_item.set_state("idle")
+                flash = min(
+                    _RESULT_FLASH_MAX, _RESULT_FLASH_BASE + len(text) * _RESULT_FLASH_PER_CHAR
+                )
+                self._overlay.flash_message(f"✓ {text}", flash)
             print(f"✓ [{duration:.1f}s→{asr_time:.2f}s] {text}", flush=True)
 
     def _restart(self, reason: str) -> None:
