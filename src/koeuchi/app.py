@@ -83,7 +83,6 @@ class App:
 
     def _start_recording(self) -> None:
         self._recorder.start()
-        self._feedback.play("start")
         self._status_item.set_state("recording")
         self._overlay.show_recording()
         print("● 録音中...", flush=True)

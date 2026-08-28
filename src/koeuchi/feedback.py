@@ -7,7 +7,6 @@ import subprocess
 _SOUND_DIR = "/System/Library/Sounds"
 
 SOUNDS = {
-    "start": "Tink",
     "stop": "Pop",
     "done": "Glass",
     "error": "Basso",
