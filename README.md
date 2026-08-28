@@ -57,7 +57,7 @@ language = "Japanese"     # recognition language; "" lets the model auto-detect
 auto_paste = false        # true = also auto-paste (Cmd+V) into the frontmost app.
                           # Requires Accessibility permission for the app that launches koeuchi
 min_duration = 0.3        # recordings shorter than this are discarded (seconds)
-sounds = true             # audio cues: start (Tink) / stop (Pop) / done (Glass) / error (Basso)
+sounds = true             # audio cues: stop (Pop) / done (Glass) / error (Basso)
 overlay = true            # show the level meter + stop button pill while recording
 menu_bar = true           # menu bar icon: mic (idle) / red mic (recording) / waveform (transcribing)
 
