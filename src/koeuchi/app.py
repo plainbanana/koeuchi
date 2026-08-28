@@ -48,6 +48,7 @@ class App:
             config.model,
             revision=config.model_revision,
             language=config.language,
+            bias_text=config.bias_text,
         )
         self._processor: TranscriptProcessor = Replacer(config.replacements)
         self._shutdown = threading.Event()

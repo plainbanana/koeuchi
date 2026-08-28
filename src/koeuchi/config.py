@@ -57,6 +57,11 @@ class Config:
         "Japanese",
         "recognition language; unset it for auto-detect (risks misdetection)",
     )
+    bias_text: str | None = _opt(
+        None,
+        "free-form text injected into the ASR system prompt to bias "
+        "recognition toward your vocabulary (names, jargon, phrases)",
+    )
     replacements: dict[str, str] = _opt(
         help_text="deterministic fixes for common misrecognitions, "
         'e.g. "クロードコード" = "Claude Code" (wrong = right)',

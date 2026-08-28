@@ -54,6 +54,8 @@ hotkey = "alt_r"          # push-to-talk key; attribute name of pynput.keyboard.
 model = "ph0ryn/Qwen3-ASR-1.7B-JA-MLX-bf16" # HuggingFace repository name or path to a local MLX model
 model_revision = ""       # pin a commit hash (the default model is already pinned; see asr/qwen3_asr.py)
 language = "Japanese"     # recognition language; "" lets the model auto-detect
+bias_text = ""            # free-form text injected into the ASR system prompt to bias
+                          # recognition toward your vocabulary (names, jargon, phrases)
 auto_paste = false        # true = also auto-paste (Cmd+V) into the frontmost app.
                           # Requires Accessibility permission for the app that launches koeuchi
 min_duration = 0.3        # recordings shorter than this are discarded (seconds)

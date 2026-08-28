@@ -44,8 +44,10 @@ class Qwen3ASRBackend(ASRBackend):
         model: str,
         revision: str | None = None,
         language: str | None = None,
+        bias_text: str | None = None,
     ):
         self._language = language or None
+        self._system_prompt = bias_text or None
         self._path = _prepare_model(model, revision)
         self._model = None
 
@@ -64,7 +66,10 @@ class Qwen3ASRBackend(ASRBackend):
         max_tokens = _MAX_TOKENS_BASE + int(len(audio) / SAMPLE_RATE * _MAX_TOKENS_PER_SEC)
         if on_progress is None:
             return model.generate(
-                audio, language=self._language, max_tokens=max_tokens
+                audio,
+                language=self._language,
+                max_tokens=max_tokens,
+                system_prompt=self._system_prompt,
             ).text.strip()
         # mlx-audio's stream=True decodes tokens one at a time, which yields
         # U+FFFD when a multibyte character splits across tokens; collect the
@@ -74,7 +79,11 @@ class Qwen3ASRBackend(ASRBackend):
         ids: list[int] = []
         last_emit = 0.0
         for token, _ in model.stream_generate(
-            audio, language=self._language, sampler=make_sampler(0.0), max_tokens=max_tokens
+            audio,
+            language=self._language,
+            sampler=make_sampler(0.0),
+            max_tokens=max_tokens,
+            system_prompt=self._system_prompt,
         ):
             ids.append(int(token))
             now = time.monotonic()
