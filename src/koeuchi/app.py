@@ -318,25 +318,26 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="koeuchi",
         description="Japanese push-to-talk voice input with local ASR",
-        epilog=_epilog(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False,
     )
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="store_true",
-        help="show this help message and exit (as JSON with --json)",
-    )
-    parser.add_argument(
-        "--version", action="version", version=f"koeuchi {app_version()}"
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="machine-readable output: run logs become one JSON object per line",
-    )
-    add_cli_options(parser)
+    actions = [
+        parser.add_argument(
+            "-h",
+            "--help",
+            action="store_true",
+            help="show this help message and exit (as JSON with --json)",
+        ),
+        parser.add_argument(
+            "--version", action="version", version=f"koeuchi {app_version()}"
+        ),
+        parser.add_argument(
+            "--json",
+            action="store_true",
+            help="machine-readable output: run logs become one JSON object per line",
+        ),
+        *add_cli_options(parser),
+    ]
     args = parser.parse_args()
     if args.help:
         if args.json:
@@ -348,8 +349,7 @@ def main() -> None:
                         "description": parser.description,
                         "options": [
                             {"flags": action.option_strings, "description": action.help}
-                            for action in parser._actions
-                            if action.option_strings
+                            for action in actions
                         ],
                         "how_it_works": _HOW_IT_WORKS,
                         "config_path": str(CONFIG_PATH),
@@ -362,6 +362,7 @@ def main() -> None:
                 )
             )
         else:
+            parser.epilog = _epilog()
             parser.print_help()
         return
     if args.json:

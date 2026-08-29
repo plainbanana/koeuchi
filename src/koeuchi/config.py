@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import textwrap
 import tomllib
+import typing
 from dataclasses import MISSING, dataclass, field, fields, replace
 from pathlib import Path
 
@@ -88,7 +89,20 @@ def _toml_literal(value) -> str:
     return str(value)
 
 
-_CLI_TYPES = {"str": str, "int": int, "float": float}
+_FIELD_TYPES = typing.get_type_hints(Config)
+
+
+def _base_type(name: str) -> type:
+    hint = _FIELD_TYPES[name]
+    return next((a for a in typing.get_args(hint) if a is not type(None)), hint)
+
+
+def _flag(f) -> str:
+    return "--" + f.name.replace("_", "-")
+
+
+def _default_of(f):
+    return f.default_factory() if f.default_factory is not MISSING else f.default
 
 
 def _replace_pair(value: str) -> tuple[str, str]:
@@ -98,34 +112,40 @@ def _replace_pair(value: str) -> tuple[str, str]:
     return wrong, right
 
 
-def add_cli_options(parser: argparse.ArgumentParser) -> None:
+def add_cli_options(parser: argparse.ArgumentParser) -> list[argparse.Action]:
     """One option per config key, generated from the dataclass."""
+    actions = []
     for f in fields(Config):
         if f.name == "replacements":
-            parser.add_argument(
-                "--replace",
-                action="append",
-                type=_replace_pair,
-                default=[],
-                metavar="WRONG=RIGHT",
-                help=f.metadata["help"] + " (repeatable; merged over the config file)",
+            actions.append(
+                parser.add_argument(
+                    "--replace",
+                    action="append",
+                    type=_replace_pair,
+                    default=[],
+                    metavar="WRONG=RIGHT",
+                    help=f.metadata["help"] + " (repeatable; merged over the config file)",
+                )
             )
-            continue
-        flag = "--" + f.name.replace("_", "-")
-        if f.type == "bool":
-            parser.add_argument(
-                flag,
-                action=argparse.BooleanOptionalAction,
-                default=None,
-                help=f.metadata["help"],
+        elif _base_type(f.name) is bool:
+            actions.append(
+                parser.add_argument(
+                    _flag(f),
+                    action=argparse.BooleanOptionalAction,
+                    default=None,
+                    help=f.metadata["help"],
+                )
             )
         else:
-            parser.add_argument(
-                flag,
-                type=_CLI_TYPES[f.type.replace(" | None", "")],
-                default=None,
-                help=f.metadata["help"],
+            actions.append(
+                parser.add_argument(
+                    _flag(f),
+                    type=_base_type(f.name),
+                    default=None,
+                    help=f.metadata["help"],
+                )
             )
+    return actions
 
 
 def apply_cli_overrides(config: Config, args: argparse.Namespace) -> Config:
@@ -144,19 +164,14 @@ def reference() -> list[dict]:
     the dataclass so it can never go stale."""
     out = []
     for f in fields(Config):
-        if f.default_factory is not MISSING:
-            default = f.default_factory()
-        elif f.metadata["show_default"]:
-            default = f.default
-        else:
-            default = None
+        default = _default_of(f)
         if f.name == "replacements":
             toml = '[replacements]\n"クロードコード" = "Claude Code"'
             cli = "--replace WRONG=RIGHT (repeatable)"
         else:
-            value = "..." if default is None else default
-            toml = f"{f.name} = {_toml_literal(value)}"
-            cli = "--" + f.name.replace("_", "-")
+            shown = default if f.metadata["show_default"] else None
+            toml = f"{f.name} = {_toml_literal('...' if shown is None else shown)}"
+            cli = _flag(f)
         out.append(
             {
                 "key": f.name,
@@ -181,7 +196,7 @@ def describe_keys() -> str:
         elif not f.metadata["show_default"]:
             decl = f"  {f.name} = (see README)"
         else:
-            decl = f"  {f.name} = {_toml_literal(f.default)}"
+            decl = f"  {f.name} = {_toml_literal(_default_of(f))}"
         first, *rest = textwrap.wrap(f.metadata["help"], width=_HELP_WRAP) or [""]
         out.append(f"{decl.ljust(_COMMENT_COL - 1)} # {first}")
         out.extend(f"{' ' * (_COMMENT_COL - 1)} # {line}" for line in rest)

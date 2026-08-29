@@ -7,10 +7,12 @@ to "dev".
 
 from __future__ import annotations
 
+import functools
 import os
 from importlib.metadata import PackageNotFoundError, version
 
 
+@functools.cache
 def app_version() -> str:
     try:
         base = version("koeuchi")
