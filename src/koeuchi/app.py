@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import queue
 import signal
@@ -14,7 +15,13 @@ import numpy as np
 from PyObjCTools import AppHelper
 
 from .asr import ASRBackend, Qwen3ASRBackend
-from .config import CONFIG_PATH, Config
+from .config import (
+    CONFIG_PATH,
+    Config,
+    add_cli_options,
+    apply_cli_overrides,
+    describe_keys,
+)
 from .feedback import SoundFeedback
 from .hotkey import HotkeyListener
 from .output import OutputController
@@ -22,6 +29,7 @@ from .processor import Replacer, TranscriptProcessor
 from .recorder import Recorder
 from .statusbar import NullStatusItem, StatusItem
 from .ui import NullOverlay, Overlay, schedule_timer
+from .version import app_version
 
 _CLOSE_TIMEOUT = 1.0
 _RESULT_FLASH_BASE = 2.5
@@ -51,7 +59,9 @@ class App:
             else NullOverlay()
         )
         self._status_item = (
-            StatusItem(on_quit=self._shutdown.set) if config.menu_bar else NullStatusItem()
+            StatusItem(version=app_version(), on_quit=self._shutdown.set)
+            if config.menu_bar
+            else NullStatusItem()
         )
         self._listener: HotkeyListener | None = None
         self._recording = False
@@ -191,6 +201,7 @@ class App:
 
     def run(self) -> None:
         self._install_signal_handlers()
+        print(f"koeuchi {app_version()}", flush=True)
         print(f"モデルロード中: {self._config.model}", flush=True)
         t0 = time.monotonic()
         self._asr.warmup()
@@ -226,8 +237,41 @@ class App:
             self._shutdown_now()
 
 
+_HELP_EPILOG = """\
+How it works:
+  koeuchi waits in the background and records the microphone only while the
+  hotkey is held down. On release, the audio is transcribed by a local ASR
+  model and the result is copied to the clipboard (with auto_paste=true it
+  also sends Cmd+V to the frontmost app).
+
+Config file:
+  ~/.config/koeuchi/config.toml (TOML). If it does not exist, all defaults
+  are used. Unknown keys are ignored. Every key can also be set via the
+  command-line options above, which take precedence over the config file.
+
+Config keys and defaults:
+{config_keys}
+
+Required macOS permissions (grant to the terminal app that launches koeuchi):
+  - Microphone (System Settings > Privacy & Security > Microphone)
+  - Accessibility (same > Accessibility); needed for the global hotkey
+    listener and for auto_paste keystrokes
+"""
+
+
 def main() -> None:
-    App(Config.load()).run()
+    parser = argparse.ArgumentParser(
+        prog="koeuchi",
+        description="Japanese push-to-talk voice input with local ASR",
+        epilog=_HELP_EPILOG.format(config_keys=describe_keys()),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"koeuchi {app_version()}"
+    )
+    add_cli_options(parser)
+    args = parser.parse_args()
+    App(apply_cli_overrides(Config.load(), args)).run()
 
 
 if __name__ == "__main__":

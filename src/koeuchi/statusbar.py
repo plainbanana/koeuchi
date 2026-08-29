@@ -30,7 +30,8 @@ class _MenuHandler(AppKit.NSObject):
 class StatusItem:
     """Menu bar controller. set_state may be called from any thread."""
 
-    def __init__(self, on_quit: Callable[[], None]):
+    def __init__(self, version: str, on_quit: Callable[[], None]):
+        self._version = version
         self._on_quit = on_quit
         self._item = None
         self._handler = None
@@ -43,6 +44,12 @@ class StatusItem:
         self._handler = _MenuHandler.alloc().init()
         self._handler.on_quit = self._on_quit
         menu = AppKit.NSMenu.alloc().init()
+        version_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            f"koeuchi {self._version}", None, ""
+        )
+        version_item.setEnabled_(False)
+        menu.addItem_(version_item)
+        menu.addItem_(AppKit.NSMenuItem.separatorItem())
         quit_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             "koeuchi を終了", "quit:", "q"
         )

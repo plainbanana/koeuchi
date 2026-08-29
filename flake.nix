@@ -18,10 +18,15 @@
         ];
       });
 
+      buildStamp = "${builtins.substring 0 8 (self.lastModifiedDate or "19700101")}.${
+        self.shortRev or self.dirtyShortRev or "unknown"
+      }";
+
       koeuchi = pkgs.writeShellApplication {
         name = "koeuchi";
         runtimeInputs = [ pkgs.uv ];
         text = ''
+          export KOEUCHI_BUILD="${buildStamp}"
           venv="''${XDG_CACHE_HOME:-$HOME/.cache}/koeuchi/venv"
           export UV_PROJECT_ENVIRONMENT="$venv"
           export UV_PYTHON="${pkgs.python312}/bin/python3.12"
