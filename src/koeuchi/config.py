@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import textwrap
 import tomllib
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import MISSING, dataclass, field, fields, replace
 from pathlib import Path
 
 from .asr.qwen3_asr import DEFAULT_REPO
@@ -137,6 +137,37 @@ def apply_cli_overrides(config: Config, args: argparse.Namespace) -> Config:
     if args.replace:
         updates["replacements"] = {**config.replacements, **dict(args.replace)}
     return replace(config, **updates)
+
+
+def reference() -> list[dict]:
+    """Machine-readable config reference for --help --json, generated from
+    the dataclass so it can never go stale."""
+    out = []
+    for f in fields(Config):
+        if f.default_factory is not MISSING:
+            default = f.default_factory()
+        elif f.metadata["show_default"]:
+            default = f.default
+        else:
+            default = None
+        if f.name == "replacements":
+            toml = '[replacements]\n"クロードコード" = "Claude Code"'
+            cli = "--replace WRONG=RIGHT (repeatable)"
+        else:
+            value = "..." if default is None else default
+            toml = f"{f.name} = {_toml_literal(value)}"
+            cli = "--" + f.name.replace("_", "-")
+        out.append(
+            {
+                "key": f.name,
+                "type": f.type,
+                "default": default,
+                "toml": toml,
+                "cli": cli,
+                "description": f.metadata["help"],
+            }
+        )
+    return out
 
 
 def describe_keys() -> str:

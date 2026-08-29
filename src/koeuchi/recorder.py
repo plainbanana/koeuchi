@@ -11,6 +11,7 @@ import collections
 import itertools
 import math
 import queue
+import sys
 import threading
 import time
 
@@ -52,7 +53,7 @@ class _Capture:
 
     def callback(self, indata: np.ndarray, frames, time_info, status) -> None:
         if status:
-            print(f"[recorder] status: {status}", flush=True)
+            print(f"[recorder] status: {status}", file=sys.stderr, flush=True)
         if not self._active:
             return
         block = indata[:, 0].copy()
@@ -100,7 +101,7 @@ class Recorder:
                         # keeps capturing silence.
                         sd._terminate()
                         sd._initialize()
-                        print("[recorder] PortAudioを再初期化しました", flush=True)
+                        print("[recorder] PortAudioを再初期化しました", file=sys.stderr, flush=True)
                     stream = sd.InputStream(
                         samplerate=self._sample_rate,
                         blocksize=self._blocksize,
@@ -118,7 +119,7 @@ class Recorder:
                 is_open = op in ("open", "reopen")
                 if is_open:
                     self._reinit = True
-                print(f"✗ 録音{'開始' if is_open else '停止'}に失敗: {e}", flush=True)
+                print(f"✗ 録音{'開始' if is_open else '停止'}に失敗: {e}", file=sys.stderr, flush=True)
             finally:
                 self._busy = None
                 if done is not None:
@@ -168,7 +169,7 @@ class Recorder:
         elapsed = time.monotonic() - self._started
         if elapsed >= _DEAD_AFTER and audio.size == 0:
             self._reinit = True
-            print("[recorder] 無音ストリームを検出。次の録音でPortAudioを再初期化します", flush=True)
+            print("[recorder] 無音ストリームを検出。次の録音でPortAudioを再初期化します", file=sys.stderr, flush=True)
         return audio
 
     def close(self) -> None:

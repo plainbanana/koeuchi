@@ -6,6 +6,7 @@ the OS disables the tap and the hotkey goes dead.
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from typing import Callable
@@ -63,7 +64,7 @@ class HotkeyListener:
             tap = self._listener._tap
             if tap is None or Quartz.CGEventTapIsEnabled(tap):
                 continue
-            print("[hotkey] イベントタップが無効化されたため再有効化します", flush=True)
+            print("[hotkey] イベントタップが無効化されたため再有効化します", file=sys.stderr, flush=True)
             Quartz.CGEventTapEnable(tap, True)
             # A key-up may have been missed while disabled.
             self.force_release()
