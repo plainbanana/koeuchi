@@ -16,6 +16,12 @@ DEFAULT_REVISION = "47090c8ba5d57a6294d527adfd76b321c732690f"
 
 SAMPLE_RATE = 16000
 _PROGRESS_INTERVAL = 0.2
+# Speech decodes at roughly 8 tokens/s of audio for Japanese (the densest
+# common case; English is closer to 4), so this cap keeps a >=2x margin while
+# stopping runaway repetition loops that otherwise generate until the library
+# default of 8192 tokens (minutes).
+_MAX_TOKENS_PER_SEC = 16.0
+_MAX_TOKENS_BASE = 128
 
 
 def _prepare_model(model: str, revision: str | None) -> str:
@@ -55,8 +61,11 @@ class Qwen3ASRBackend(ASRBackend):
         self, audio: np.ndarray, on_progress: ProgressCallback | None = None
     ) -> str:
         model = self._load()
+        max_tokens = _MAX_TOKENS_BASE + int(len(audio) / SAMPLE_RATE * _MAX_TOKENS_PER_SEC)
         if on_progress is None:
-            return model.generate(audio, language=self._language).text.strip()
+            return model.generate(
+                audio, language=self._language, max_tokens=max_tokens
+            ).text.strip()
         # mlx-audio's stream=True decodes tokens one at a time, which yields
         # U+FFFD when a multibyte character splits across tokens; collect the
         # ids and re-decode from the start instead.
@@ -65,7 +74,7 @@ class Qwen3ASRBackend(ASRBackend):
         ids: list[int] = []
         last_emit = 0.0
         for token, _ in model.stream_generate(
-            audio, language=self._language, sampler=make_sampler(0.0)
+            audio, language=self._language, sampler=make_sampler(0.0), max_tokens=max_tokens
         ):
             ids.append(int(token))
             now = time.monotonic()
